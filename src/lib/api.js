@@ -1,10 +1,14 @@
-// Single entry point to the backend. Every call goes to /api/app with the
+// Single entry point to the backend. Every call goes to /api with the
 // action name; the verified Telegram identity travels in the init-data header.
 //
 // In dev (outside Telegram) we can't reach the Python function or sign a
 // request, so calls resolve from `devMock` instead — enough to build the UI.
 
 import { getInitData, isDev } from './telegram.js'
+
+// API base URL — on Render, the API runs on a separate service.
+// In production, set window.__API_BASE__ or fall back to same-origin /api.
+const API_BASE = window.__API_BASE__ || '/api'
 
 // Fire-and-forget activity ping to the keeper. Never blocks the UI or surfaces
 // errors — if it fails, the action the user took still happened.
@@ -18,7 +22,7 @@ export async function call(action, payload = {}) {
     return devMock(action, payload)
   }
 
-  const res = await fetch('/api/app', {
+  const res = await fetch(`${API_BASE}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

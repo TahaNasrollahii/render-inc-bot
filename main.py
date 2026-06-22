@@ -1,10 +1,13 @@
-"""Bot entry point — long-running polling process with APScheduler.
+"""Bot entry point — long-running Web Service with polling + APScheduler.
 
-The bot runs as a persistent process on Render, polling Telegram for
-updates and running scheduled reminder sweeps via APScheduler.
+Runs as a Web Service on Render (free tier). Includes a health check
+endpoint so Render keeps the service alive.
 """
 
 import asyncio
+import os
+import threading
+from http.server import BaseHTTPRequestHandler
 
 from aiogram import Bot, Dispatcher
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -16,7 +19,28 @@ from bot.reminders import run_all_reminders
 from bot.storage import Store, make_fsm_storage, make_redis
 
 
+class HealthHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-Type", "text/plain")
+        self.end_headers()
+        self.wfile.write(b"the corridor is open.")
+
+    def log_message(self, format, *args):
+        pass  # suppress request logs
+
+
+def _start_http_server() -> None:
+    port = int(os.getenv("PORT", "10000"))
+    server = __import__("http.server").HTTPServer(("0.0.0.0", port), HealthHandler)
+    server.serve_forever()
+
+
 async def main() -> None:
+    # Start health check server in a daemon thread
+    http_thread = threading.Thread(target=_start_http_server, daemon=True)
+    http_thread.start()
+
     redis = make_redis()
     store = Store(redis)
     bot = Bot(token=TOKEN)
