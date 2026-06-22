@@ -31,8 +31,9 @@ class HealthHandler(BaseHTTPRequestHandler):
 
 
 def _start_http_server() -> None:
+    import http.server
     port = int(os.getenv("PORT", "10000"))
-    server = __import__("http.server").HTTPServer(("0.0.0.0", port), HealthHandler)
+    server = http.server.HTTPServer(("0.0.0.0", port), HealthHandler)
     server.serve_forever()
 
 
@@ -57,7 +58,9 @@ async def main() -> None:
     scheduler.add_job(run_all_reminders, "cron", hour=9, minute=0)
     scheduler.start()
 
-    print("the corridor is polling the dark...")
+    # Delete any existing webhook before starting polling
+    await bot.delete_webhook(drop_pending_updates=True)
+    print("webhook deleted, polling started.")
     await dp.start_polling(bot, store=store)
 
 
